@@ -6,10 +6,13 @@ export default class View {
   renderErrorsHandler(errors) {
     if (!errors.message) {
       this.elements.feedback.textContent = '';
+      this.elements.input.classList.remove('is-invalid');
+      return;
     }
-    this.elements.feedback.textContent = errors.message ?? '';
+    this.elements.feedback.textContent = errors.message;
     this.elements.feedback.classList.remove('text-success');
     this.elements.feedback.classList.add('text-danger');
+    this.elements.input.classList.add('is-invalid');
   }
 
   handleProcessState(process) {
