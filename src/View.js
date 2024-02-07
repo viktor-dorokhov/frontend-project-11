@@ -42,4 +42,25 @@ export default class View {
         throw new Error(`Unknown process ${process}`);
     }
   }
+
+  watcher() {
+    return (path, value) => {
+      switch (path) {
+        case 'form.processState':
+          this.handleProcessState(value);
+          break;
+        case 'form.errors':
+          this.renderErrorsHandler(value);
+          break;
+        /* case 'form.response':
+          // makeListHandler(value, elements);
+          break;
+        case 'form.processError':
+          // processErrorHandler(value, elements);
+          break; */
+        default:
+          break;
+      }
+    };
+  }
 }

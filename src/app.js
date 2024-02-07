@@ -28,24 +28,7 @@ const app = () => {
   };
 
   const view = new View(elements);
-  const watchState = onChange(state, (path, value) => {
-    switch (path) {
-      case 'form.processState':
-        view.handleProcessState(value);
-        break;
-      case 'form.errors':
-        view.renderErrorsHandler(value);
-        break;
-      /* case 'form.response':
-        // makeListHandler(value, elements);
-        break;
-      case 'form.processError':
-        // processErrorHandler(value, elements);
-        break; */
-      default:
-        break;
-    }
-  });
+  const watchState = onChange(state, view.watcher());
 
   elements.form.addEventListener('submit', (e) => {
     e.preventDefault();
