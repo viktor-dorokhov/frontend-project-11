@@ -1,6 +1,7 @@
 export default class View {
-  constructor(elements) {
+  constructor(elements, i18n) {
     this.elements = elements;
+    this.i18n = i18n;
   }
 
   renderErrorsHandler(errors) {
@@ -9,7 +10,7 @@ export default class View {
       this.elements.input.classList.remove('is-invalid');
       return;
     }
-    this.elements.feedback.textContent = errors.message;
+    this.elements.feedback.textContent = this.i18n.t(errors.message);
     this.elements.feedback.classList.remove('text-success');
     this.elements.feedback.classList.add('text-danger');
     this.elements.input.classList.add('is-invalid');
@@ -32,7 +33,7 @@ export default class View {
       case 'success':
         this.elements.submit.disabled = false;
         this.elements.input.disabled = false;
-        this.elements.feedback.textContent = 'RSS успешно загружен';
+        this.elements.feedback.textContent = this.i18n.t('loadSuccess');
         this.elements.feedback.classList.remove('text-danger');
         this.elements.feedback.classList.add('text-success');
         this.elements.form.reset();

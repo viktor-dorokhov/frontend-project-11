@@ -1,14 +1,32 @@
 // import axios from 'axios';
 import * as yup from 'yup';
-// import _ from 'lodash';
+import i18next from 'i18next';
 import onChange from 'on-change';
 import View from './View.js';
+import resources from './locales/index.js';
+
+yup.setLocale({
+  mixed: {
+    notOneOf: 'errors.validation.notOneOf',
+  },
+  string: {
+    url: 'errors.validation.url',
+  },
+});
 
 const getSchema = (feeds) => (
-  yup.string().url('Ссылка должна быть валидным URL').notOneOf(feeds, 'RSS уже существует')
+  yup.string().url().notOneOf(feeds)
 );
 
 const app = () => {
+  const defaultLng = 'ru';
+  const i18nInstance = i18next.createInstance();
+  i18nInstance.init({
+    lng: defaultLng,
+    debug: false,
+    resources,
+  });
+
   const state = {
     form: {
       field: '',
@@ -27,7 +45,7 @@ const app = () => {
     feedback: document.querySelector('.feedback'),
   };
 
-  const view = new View(elements);
+  const view = new View(elements, i18nInstance);
   const watchState = onChange(state, view.watcher());
 
   elements.form.addEventListener('submit', (e) => {
