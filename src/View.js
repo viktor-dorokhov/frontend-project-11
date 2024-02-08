@@ -1,6 +1,10 @@
+import onChange from 'on-change';
+import DOMPurify from 'dompurify';
+
 export default class View {
-  constructor(elements, i18n) {
+  constructor(elements, handlers, i18n) {
     this.elements = elements;
+    this.handlers = handlers;
     this.i18n = i18n;
   }
 
@@ -61,8 +65,8 @@ export default class View {
     const list = card.querySelector('ul');
     list.innerHTML = feeds.map(({ title, description, id }) => (
       `<li class="list-group-item border-0 border-end-0" data-id="${id}">
-      <h3 class="h6 m-0">${title}</h3>
-      <p class="m-0 small text-black-50">${description}</p></li>`
+      <h3 class="h6 m-0">${DOMPurify.sanitize(title)}</h3>
+      <p class="m-0 small text-black-50">${DOMPurify.sanitize(description)}</p></li>`
     )).join('');
     this.elements.feeds.append(card);
   }
@@ -76,16 +80,42 @@ export default class View {
     </div>
     <ul class="list-group border-0 rounded-0"></ul>`;
     const list = card.querySelector('ul');
-    list.innerHTML = posts.map(({ title, link, id }) => (
-      `<li class="list-group-item d-flex justify-content-between align-items-start border-0 border-end-0" data-id="${id}">
-        <a href="${link}" class="fw-bold" data-id="${id}" target="_blank" rel="noopener noreferrer">${title}</a>
-        <button type="button" class="btn btn-outline-primary btn-sm" data-id="2" data-bs-toggle="modal" data-bs-target="#modal">${this.i18n.t('view')}</button>`
-    )).join('');
+    list.innerHTML = posts.map(({ title, link, id }) => {
+      const linkClass = this.watchState.ui.visitedPosts.has(id) ? 'fw-normal link-secondary' : 'fw-bold';
+      return `<li class="list-group-item d-flex justify-content-between align-items-start border-0 border-end-0" data-id="${id}">
+        <a href="${DOMPurify.sanitize(link)}" class="${linkClass}" data-id="${id}" target="_blank" rel="noopener noreferrer">${DOMPurify.sanitize(title)}</a>
+        <button type="button" class="btn btn-outline-primary btn-sm" data-id="${id}" data-bs-toggle="modal" data-bs-target="#modal">${this.i18n.t('view')}</button>`;
+    }).join('');
+    const links = list.querySelectorAll('a');
+    links.forEach((item) => {
+      item.addEventListener('click', this.handlers.onLinkClick.bind(this));
+    });
+    const buttons = list.querySelectorAll('button');
+    buttons.forEach((item) => {
+      item.addEventListener('click', this.handlers.onButtonClick.bind(this));
+    });
     this.elements.posts.append(card);
   }
 
-  watcher() {
-    return (path, value) => {
+  renderVisitedPosts() {
+    const links = this.elements.posts.querySelectorAll('a');
+    Array.from(links)
+      .filter((link) => this.watchState.ui.visitedPosts.has(Number(link.dataset.id)))
+      .forEach((link) => {
+        link.classList.remove('fw-bold');
+        link.classList.add('fw-normal', 'link-secondary');
+      });
+  }
+
+  renderModalContent(activePostId) {
+    const activePost = this.watchState.data.posts.find(({ id }) => id === activePostId);
+    this.elements.modal.querySelector('.modal-title').innerHTML = DOMPurify.sanitize(activePost.title);
+    this.elements.modal.querySelector('.modal-body').innerHTML = DOMPurify.sanitize(activePost.description);
+    this.elements.modal.querySelector('.full-article').setAttribute('href', DOMPurify.sanitize(activePost.link));
+  }
+
+  createWatchState(state) {
+    this.watchState = onChange(state, (path, value) => {
       switch (path) {
         case 'form.processState':
           this.handleProcessState(value);
@@ -105,9 +135,16 @@ export default class View {
         case 'data.posts':
           this.renderPosts(value);
           break;
+        case 'ui.visitedPosts':
+          this.renderVisitedPosts();
+          break;
+        case 'ui.activePostId':
+          this.renderModalContent(value);
+          break;
         default:
           break;
       }
-    };
+    });
+    return this.watchState;
   }
 }

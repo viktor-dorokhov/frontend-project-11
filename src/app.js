@@ -1,6 +1,5 @@
 import * as yup from 'yup';
 import i18next from 'i18next';
-import onChange from 'on-change';
 import axios, { AxiosError } from 'axios';
 import View from './View.js';
 import parser from './parser.js';
@@ -37,13 +36,17 @@ const app = () => {
   const state = {
     form: {
       field: '',
-      processState: '',
       errors: {},
+      processState: '',
       processError: null,
     },
     data: {
       feeds: [],
       posts: [],
+    },
+    ui: {
+      visitedPosts: new Set(),
+      activePostId: null,
     },
     autoRefresh: false,
   };
@@ -55,10 +58,22 @@ const app = () => {
     feedback: document.querySelector('.feedback'),
     posts: document.querySelector('.posts'),
     feeds: document.querySelector('.feeds'),
+    modal: document.getElementById('modal'),
+  };
+  const handlers = {
+    onLinkClick(event) {
+      const id = Number(event.target.dataset.id);
+      this.watchState.ui.visitedPosts.add(id);
+    },
+    onButtonClick(event) {
+      const id = Number(event.target.dataset.id);
+      this.watchState.ui.visitedPosts.add(id);
+      this.watchState.ui.activePostId = id;
+    },
   };
 
-  const view = new View(elements, i18nInstance);
-  const watchState = onChange(state, view.watcher());
+  const view = new View(elements, handlers, i18nInstance);
+  const watchState = view.createWatchState(state);
 
   const addFeedToState = (url, rss) => {
     const newFeedId = watchState.data.feeds.length + 1;
