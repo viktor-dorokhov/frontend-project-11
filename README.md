@@ -6,4 +6,22 @@
 [![Actions Status](https://github.com/viktor-dorokhov/frontend-project-11/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/viktor-dorokhov/frontend-project-11/actions)
 [![Maintainability](https://api.codeclimate.com/v1/badges/d2dee2ce319ef6b6c93d/maintainability)](https://codeclimate.com/github/viktor-dorokhov/frontend-project-46/maintainability)
 
-[Ссылка на Versel](https://frontend-project-11-blue-three.vercel.app/)
+## Установка
+
+Для установки выполните следующие команды:
+```
+git clone git@github.com:viktor-dorokhov/frontend-project-11.git rss-agregator
+cd rss-agregator
+make install
+```
+Для сборки выполните команду
+```
+make build
+```
+Для сборки и просмотра приложения в браузере выполните команду
+```
+make build
+```
+
+
+[Демонстрация](https://frontend-project-11-blue-three.vercel.app/)
