@@ -1,7 +1,12 @@
 import HtmlWebpackPlugin from 'html-webpack-plugin';
+import MiniCssExtractPlugin from 'mini-css-extract-plugin';
+import autoprefixer from 'autoprefixer';
 
 export default {
-  entry: './src/index.js',
+  entry: [
+    './src/index.js',
+    './src/styles/styles.scss',
+  ],
   output: {
     clean: true,
   },
@@ -13,6 +18,7 @@ export default {
     new HtmlWebpackPlugin({
       template: './src/index.html',
     }),
+    new MiniCssExtractPlugin(),
   ],
   mode: process.env.NODE_ENV || 'development',
   module: {
@@ -27,10 +33,40 @@ export default {
           },
         },
       },
-      { test: /\.css$/, use: ['style-loader', 'css-loader', 'postcss-loader'] },
+      {
+        test: /\.css$/,
+        use: [
+          MiniCssExtractPlugin.loader,
+          'css-loader',
+          {
+            loader: 'postcss-loader',
+            options: {
+              postcssOptions: {
+                plugins: [
+                  autoprefixer,
+                ],
+              },
+            },
+          },
+        ],
+      },
       {
         test: /\.scss$/,
-        use: ['style-loader', 'css-loader', 'sass-loader', 'postcss-loader'],
+        use: [
+          MiniCssExtractPlugin.loader,
+          'css-loader',
+          {
+            loader: 'postcss-loader',
+            options: {
+              postcssOptions: {
+                plugins: [
+                  autoprefixer,
+                ],
+              },
+            },
+          },
+          'sass-loader',
+        ],
       },
       {
         test: /\.woff2?(\?v=[0-9]\.[0-9]\.[0-9])?$/,

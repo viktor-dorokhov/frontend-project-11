@@ -1,6 +1,7 @@
 import * as yup from 'yup';
 import i18next from 'i18next';
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
+import 'bootstrap/js/dist/modal.js';
 import View from './View.js';
 import parser from './parser.js';
 import resources from './locales/index.js';
@@ -13,6 +14,7 @@ const routes = {
 
 yup.setLocale({
   mixed: {
+    required: 'errors.validation.required',
     notOneOf: 'errors.validation.notOneOf',
   },
   string: {
@@ -21,7 +23,7 @@ yup.setLocale({
 });
 
 const getSchema = (feeds) => (
-  yup.string().url().notOneOf(feeds)
+  yup.string().url().required().notOneOf(feeds)
 );
 
 const app = () => {
@@ -75,12 +77,12 @@ const app = () => {
   const view = new View(elements, handlers, i18nInstance);
   const watchState = view.createWatchState(state);
 
-  const addFeedToState = (url, rss) => {
+  const addFeedToState = (url, { title, description }) => {
     const newFeedId = watchState.data.feeds.length + 1;
     watchState.data.feeds.unshift({
       url,
-      title: rss.title,
-      description: rss.description,
+      title,
+      description,
       id: newFeedId,
     });
     return newFeedId;
@@ -110,6 +112,7 @@ const app = () => {
         })
     ));
     Promise.all(promises)
+      .catch(() => {})
       .finally(() => setTimeout(autoRefresh, autoRefreshDelay));
   };
 
@@ -119,6 +122,16 @@ const app = () => {
     }
     watchState.autoRefresh = true;
     setTimeout(autoRefresh, autoRefreshDelay);
+  };
+
+  const processErrors = (err) => {
+    const errorType = err.constructor.name;
+    const errorMapping = {
+      ValidationError: () => { watchState.form.errors = err; },
+      AxiosError: () => { watchState.form.processError = 'errors.network'; },
+      Default: () => { watchState.form.processError = err.message; },
+    };
+    (errorMapping[errorType] ?? errorMapping.Default)();
   };
 
   elements.form.addEventListener('submit', (e) => {
@@ -141,15 +154,7 @@ const app = () => {
       })
       .catch((err) => {
         watchState.form.processState = 'error';
-        if (err instanceof AxiosError) {
-          watchState.form.processError = 'errors.network';
-          return;
-        }
-        if (err instanceof yup.ValidationError) {
-          watchState.form.errors = err;
-          return;
-        }
-        watchState.form.processError = err.message;
+        processErrors(err);
       });
   });
 };
