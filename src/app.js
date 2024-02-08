@@ -6,6 +6,8 @@ import View from './View.js';
 import parser from './parser.js';
 import resources from './locales/index.js';
 
+const autoRefreshDelay = 5000;
+
 const routes = {
   allOrigins: (url) => `https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(url)}`,
 };
@@ -36,7 +38,6 @@ const app = () => {
     form: {
       field: '',
       processState: '',
-      response: {},
       errors: {},
       processError: null,
     },
@@ -44,6 +45,7 @@ const app = () => {
       feeds: [],
       posts: [],
     },
+    autoRefresh: false,
   };
 
   const elements = {
@@ -66,14 +68,42 @@ const app = () => {
       description: rss.description,
       id: newFeedId,
     });
+    return newFeedId;
   };
 
-  const addPostsToState = (rss) => {
+  const addPostsToState = (items, feedId) => {
+    if (items.length === 0) {
+      return;
+    }
     const postsLength = watchState.data.posts.length;
-    const posts = rss.items.reduce((acc, item) => (
-      [...acc, { ...item, id: postsLength + acc.length + 1 }]
+    const posts = items.reduce((acc, item) => (
+      [...acc, { ...item, id: postsLength + acc.length + 1, feedId }]
     ), []);
     watchState.data.posts = [...posts, ...watchState.data.posts];
+  };
+
+  const autoRefresh = () => {
+    const promises = watchState.data.feeds.map((feed) => (
+      axios.get(routes.allOrigins(feed.url))
+        .then((response) => parser(response.data.contents))
+        .then((rss) => {
+          const postsOfThisFeed = watchState.data.posts.filter(({ feedId }) => feedId === feed.id);
+          const newPosts = rss.items.filter(({ title, guid }) => (
+            !postsOfThisFeed.find((post) => title === post.title && guid === post.guid)
+          ));
+          addPostsToState(newPosts, feed.id);
+        })
+    ));
+    Promise.all(promises)
+      .finally(() => setTimeout(autoRefresh, autoRefreshDelay));
+  };
+
+  const startAutoRefresh = () => {
+    if (watchState.autoRefresh) {
+      return;
+    }
+    watchState.autoRefresh = true;
+    setTimeout(autoRefresh, autoRefreshDelay);
   };
 
   elements.form.addEventListener('submit', (e) => {
@@ -85,16 +115,16 @@ const app = () => {
       .then(() => {
         watchState.form.errors = {};
         watchState.form.processState = 'sending';
+        return axios.get(routes.allOrigins(watchState.form.field));
       })
-      .then(() => axios.get(routes.allOrigins(watchState.form.field)))
       .then((response) => parser(response.data.contents))
       .then((rss) => {
         watchState.form.processState = 'success';
-        addFeedToState(watchState.form.field, rss);
-        addPostsToState(rss);
+        const newFeedId = addFeedToState(watchState.form.field, rss);
+        addPostsToState(rss.items, newFeedId);
+        startAutoRefresh();
       })
       .catch((err) => {
-        // console.log(err);
         watchState.form.processState = 'error';
         if (err instanceof AxiosError) {
           watchState.form.processError = 'errors.network';
@@ -104,9 +134,7 @@ const app = () => {
           watchState.form.errors = err;
           return;
         }
-        if (err instanceof Error) {
-          watchState.form.processError = err.message;
-        }
+        watchState.form.processError = err.message;
       });
   });
 };
