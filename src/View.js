@@ -4,9 +4,8 @@ import DOMPurify from 'dompurify';
 const noop = () => {};
 
 export default class View {
-  constructor(elements, handlers, i18n) {
+  constructor(elements, i18n) {
     this.elements = elements;
-    this.handlers = handlers;
     this.i18n = i18n;
   }
 
@@ -91,14 +90,6 @@ export default class View {
         <a href="${DOMPurify.sanitize(link)}" class="${linkClass}" data-id="${id}" target="_blank" rel="noopener noreferrer">${DOMPurify.sanitize(title)}</a>
         <button type="button" class="btn btn-outline-primary btn-sm" data-id="${id}" data-bs-toggle="modal" data-bs-target="#modal">${this.i18n.t('view')}</button>`;
     }).join('');
-    const links = list.querySelectorAll('a');
-    links.forEach((item) => {
-      item.addEventListener('click', this.handlers.onLinkClick.bind(this));
-    });
-    const buttons = list.querySelectorAll('button');
-    buttons.forEach((item) => {
-      item.addEventListener('click', this.handlers.onButtonClick.bind(this));
-    });
     this.elements.posts.append(card);
   }
 

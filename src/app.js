@@ -62,19 +62,7 @@ const app = () => {
     feeds: document.querySelector('.feeds'),
     modal: document.getElementById('modal'),
   };
-  const handlers = {
-    onLinkClick(event) {
-      const id = Number(event.target.dataset.id);
-      this.watchState.ui.visitedPosts.add(id);
-    },
-    onButtonClick(event) {
-      const id = Number(event.target.dataset.id);
-      this.watchState.ui.visitedPosts.add(id);
-      this.watchState.ui.activePostId = id;
-    },
-  };
-
-  const view = new View(elements, handlers, i18nInstance);
+  const view = new View(elements, i18nInstance);
   const watchState = view.createWatchState(state);
 
   const addFeedToState = (url, { title, description }) => {
@@ -156,6 +144,17 @@ const app = () => {
         watchState.form.processState = 'error';
         processErrors(err);
       });
+  });
+
+  elements.posts.addEventListener('click', (e) => {
+    if (!e.target.getAttribute('data-id')) {
+      return;
+    }
+    const id = Number(e.target.dataset.id);
+    watchState.ui.visitedPosts.add(id);
+    if (e.target.tagName === 'BUTTON') {
+      watchState.ui.activePostId = id;
+    }
   });
 };
 
