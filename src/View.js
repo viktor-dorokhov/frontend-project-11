@@ -85,7 +85,7 @@ export default class View {
     <ul class="list-group border-0 rounded-0"></ul>`;
     const list = card.querySelector('ul');
     list.innerHTML = posts.map(({ title, link, id }) => {
-      const linkClass = this.watchState.ui.visitedPosts.has(id) ? 'fw-normal link-secondary' : 'fw-bold';
+      const linkClass = this.watchState.ui.visitedPosts.has(id) ? 'fw-normal text-secondary' : 'fw-bold';
       return `<li class="list-group-item d-flex justify-content-between align-items-start border-0 border-end-0" data-id="${id}">
         <a href="${DOMPurify.sanitize(link)}" class="${linkClass}" data-id="${id}" target="_blank" rel="noopener noreferrer">${DOMPurify.sanitize(title)}</a>
         <button type="button" class="btn btn-outline-primary btn-sm" data-id="${id}" data-bs-toggle="modal" data-bs-target="#modal">${this.i18n.t('view')}</button>`;
@@ -99,7 +99,7 @@ export default class View {
       .filter((link) => this.watchState.ui.visitedPosts.has(Number(link.dataset.id)))
       .forEach((link) => {
         link.classList.remove('fw-bold');
-        link.classList.add('fw-normal', 'link-secondary');
+        link.classList.add('fw-normal', 'text-secondary');
       });
   }
 
