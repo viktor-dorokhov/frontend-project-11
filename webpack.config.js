@@ -2,10 +2,7 @@ import HtmlWebpackPlugin from 'html-webpack-plugin';
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 
 export default {
-  entry: [
-    './src/index.js',
-    './src/styles/styles.scss',
-  ],
+  entry: './src/index.js',
   output: {
     clean: true,
   },

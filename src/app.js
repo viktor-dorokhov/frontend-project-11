@@ -1,15 +1,19 @@
 import * as yup from 'yup';
 import i18next from 'i18next';
 import axios from 'axios';
+import { uniqueId } from 'lodash';
 import 'bootstrap/js/dist/modal.js';
-import View from './View.js';
+import createWatchState from './view.js';
 import parser from './parser.js';
 import resources from './locales/index.js';
 
 const autoRefreshDelay = 5000;
 
-const routes = {
-  allOrigins: (url) => `https://allorigins.hexlet.app/get?disableCache=true&url=${encodeURIComponent(url)}`,
+const getProxyUrl = (url) => {
+  const proxyUrl = new URL('get', 'https://allorigins.hexlet.app');
+  proxyUrl.searchParams.set('disableCache', true);
+  proxyUrl.searchParams.set('url', url);
+  return proxyUrl;
 };
 
 yup.setLocale({
@@ -26,47 +30,11 @@ const getSchema = (feeds) => (
   yup.string().url().required().notOneOf(feeds)
 );
 
-const app = () => {
-  const defaultLng = 'ru';
-  const i18nInstance = i18next.createInstance();
-  i18nInstance.init({
-    lng: defaultLng,
-    debug: false,
-    resources,
-  });
+const runApp = (state, elements, i18nInstance) => {
+  const watchState = createWatchState(state, elements, i18nInstance);
 
-  const state = {
-    form: {
-      field: '',
-      errors: {},
-      processState: '',
-      processError: null,
-    },
-    data: {
-      feeds: [],
-      posts: [],
-    },
-    ui: {
-      visitedPosts: new Set(),
-      activePostId: null,
-    },
-    autoRefresh: false,
-  };
-
-  const elements = {
-    form: document.querySelector('form'),
-    input: document.getElementById('url-input'),
-    submit: document.querySelector('[type="submit"]'),
-    feedback: document.querySelector('.feedback'),
-    posts: document.querySelector('.posts'),
-    feeds: document.querySelector('.feeds'),
-    modal: document.getElementById('modal'),
-  };
-  const view = new View(elements, i18nInstance);
-  const watchState = view.createWatchState(state);
-
-  const addFeedToState = (url, { title, description }) => {
-    const newFeedId = watchState.data.feeds.length + 1;
+  const addFeed = (url, { title, description }) => {
+    const newFeedId = uniqueId('feed_');
     watchState.data.feeds.unshift({
       url,
       title,
@@ -76,48 +44,49 @@ const app = () => {
     return newFeedId;
   };
 
-  const addPostsToState = (items, feedId) => {
+  const addPosts = (items, feedId) => {
     if (items.length === 0) {
       return;
     }
-    const postsLength = watchState.data.posts.length;
-    const posts = items.reduce((acc, item) => (
-      [...acc, { ...item, id: postsLength + acc.length + 1, feedId }]
-    ), []);
-    watchState.data.posts = [...posts, ...watchState.data.posts];
+    const posts = items.map((item) => (
+      { ...item, id: uniqueId('post_'), feedId }
+    ));
+    watchState.data.posts.unshift(...posts);
   };
 
   const autoRefresh = () => {
     const promises = watchState.data.feeds.map((feed) => (
-      axios.get(routes.allOrigins(feed.url))
+      axios.get(getProxyUrl(feed.url))
         .then((response) => parser(response.data.contents))
         .then((rss) => {
           const postsOfThisFeed = watchState.data.posts.filter(({ feedId }) => feedId === feed.id);
-          const newPosts = rss.items.filter(({ title, guid }) => (
-            !postsOfThisFeed.find((post) => title === post.title && guid === post.guid)
+          const newPosts = rss.items.filter(({ title }) => (
+            !postsOfThisFeed.find((post) => title === post.title)
           ));
-          addPostsToState(newPosts, feed.id);
+          addPosts(newPosts, feed.id);
         })
     ));
     Promise.all(promises)
       .catch(() => {})
       .finally(() => setTimeout(autoRefresh, autoRefreshDelay));
   };
-
-  const startAutoRefresh = () => {
-    if (watchState.autoRefresh) {
-      return;
-    }
-    watchState.autoRefresh = true;
-    setTimeout(autoRefresh, autoRefreshDelay);
-  };
+  setTimeout(autoRefresh, autoRefreshDelay);
 
   const processErrors = (err) => {
     const errorType = err.constructor.name;
     const errorMapping = {
-      ValidationError: () => { watchState.form.errors = err; },
-      AxiosError: () => { watchState.form.processError = 'errors.network'; },
-      Default: () => { watchState.form.processError = err.message; },
+      ValidationError: () => {
+        watchState.form.state = 'invalid';
+        watchState.form.error = err;
+      },
+      AxiosError: () => {
+        watchState.process.state = 'error';
+        watchState.process.error = 'errors.network';
+      },
+      Default: () => {
+        watchState.process.state = 'error';
+        watchState.process.error = err.message;
+      },
     };
     (errorMapping[errorType] ?? errorMapping.Default)();
   };
@@ -129,33 +98,71 @@ const app = () => {
     getSchema(watchState.data.feeds.map(({ url }) => url))
       .validate(watchState.form.field)
       .then(() => {
-        watchState.form.errors = {};
-        watchState.form.processState = 'sending';
-        return axios.get(routes.allOrigins(watchState.form.field));
+        watchState.form.state = 'valid';
+        watchState.form.error = {};
+        watchState.process.state = 'sending';
+        watchState.process.error = null;
+        return axios.get(getProxyUrl(watchState.form.field));
       })
       .then((response) => parser(response.data.contents))
       .then((rss) => {
-        watchState.form.processState = 'success';
-        const newFeedId = addFeedToState(watchState.form.field, rss);
-        addPostsToState(rss.items, newFeedId);
-        startAutoRefresh();
+        watchState.process.state = 'success';
+        const feedId = addFeed(watchState.form.field, rss);
+        addPosts(rss.items, feedId);
       })
       .catch((err) => {
-        watchState.form.processState = 'error';
         processErrors(err);
       });
   });
 
   elements.posts.addEventListener('click', (e) => {
-    if (!e.target.getAttribute('data-id')) {
+    if (!e.target.dataset.id) {
       return;
     }
-    const id = Number(e.target.dataset.id);
+    const { id } = e.target.dataset;
     watchState.ui.visitedPosts.add(id);
-    if (e.target.tagName === 'BUTTON') {
-      watchState.ui.activePostId = id;
-    }
+    watchState.ui.activePostId = id;
   });
 };
 
-export default app;
+const initApp = () => {
+  const state = {
+    form: {
+      state: 'filling',
+      error: {},
+      field: '',
+    },
+    process: {
+      state: 'idle',
+      error: null,
+    },
+    data: {
+      feeds: [],
+      posts: [],
+    },
+    ui: {
+      visitedPosts: new Set(),
+      activePostId: null,
+    },
+  };
+
+  const elements = {
+    form: document.querySelector('form'),
+    input: document.getElementById('url-input'),
+    submit: document.querySelector('[type="submit"]'),
+    feedback: document.querySelector('.feedback'),
+    posts: document.querySelector('.posts'),
+    feeds: document.querySelector('.feeds'),
+    modal: document.getElementById('modal'),
+  };
+
+  const defaultLng = 'ru';
+  const i18nInstance = i18next.createInstance();
+  i18nInstance.init({
+    lng: defaultLng,
+    debug: false,
+    resources,
+  }).then(() => runApp(state, elements, i18nInstance));
+};
+
+export default initApp;
