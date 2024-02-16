@@ -91,24 +91,29 @@ const runApp = (state, elements, i18nInstance) => {
     (errorMapping[errorType] ?? errorMapping.Default)();
   };
 
+  const loadRss = () => {
+    watchState.process.state = 'sending';
+    watchState.process.error = null;
+    axios.get(getProxyUrl(watchState.form.field))
+      .then((response) => parser(response.data.contents))
+      .then((rss) => {
+        watchState.process.state = 'success';
+        const feedId = addFeed(watchState.form.field, rss);
+        addPosts(rss.items, feedId);
+      });
+  };
+
   elements.form.addEventListener('submit', (e) => {
     e.preventDefault();
-    watchState.form.field = elements.input.value.trim();
+    const data = new FormData(e.target);
+    watchState.form.field = data.get('url').trim();
     watchState.form.processError = null;
     getSchema(watchState.data.feeds.map(({ url }) => url))
       .validate(watchState.form.field)
       .then(() => {
         watchState.form.state = 'valid';
         watchState.form.error = {};
-        watchState.process.state = 'sending';
-        watchState.process.error = null;
-        return axios.get(getProxyUrl(watchState.form.field));
-      })
-      .then((response) => parser(response.data.contents))
-      .then((rss) => {
-        watchState.process.state = 'success';
-        const feedId = addFeed(watchState.form.field, rss);
-        addPosts(rss.items, feedId);
+        loadRss();
       })
       .catch((err) => {
         processErrors(err);
