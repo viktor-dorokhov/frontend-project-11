@@ -4,7 +4,7 @@ import axios from 'axios';
 import { uniqueId } from 'lodash';
 import 'bootstrap/js/dist/modal.js';
 import createWatchState from './view.js';
-import parser from './parser.js';
+import parseRss from './parser.js';
 import resources from './locales/index.js';
 
 const autoRefreshDelay = 5000;
@@ -57,7 +57,7 @@ const runApp = (state, elements, i18nInstance) => {
   const autoRefresh = () => {
     const promises = watchState.data.feeds.map((feed) => (
       axios.get(getProxyUrl(feed.url))
-        .then((response) => parser(response.data.contents))
+        .then((response) => parseRss(response.data.contents))
         .then((rss) => {
           const postsOfThisFeed = watchState.data.posts.filter(({ feedId }) => feedId === feed.id);
           const newPosts = rss.items.filter(({ title }) => (
@@ -95,11 +95,14 @@ const runApp = (state, elements, i18nInstance) => {
     watchState.process.state = 'sending';
     watchState.process.error = null;
     axios.get(getProxyUrl(watchState.form.field))
-      .then((response) => parser(response.data.contents))
+      .then((response) => parseRss(response.data.contents))
       .then((rss) => {
         watchState.process.state = 'success';
         const feedId = addFeed(watchState.form.field, rss);
         addPosts(rss.items, feedId);
+      })
+      .catch((err) => {
+        processErrors(err);
       });
   };
 
